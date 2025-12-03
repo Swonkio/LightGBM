@@ -105,17 +105,18 @@ class HyperliquidClient:
         """Subscribe to all required data channels."""
         for symbol in self.symbols:
             api_symbol = normalize_symbol(symbol)
+
+            # Hyperliquid WebSocket uses {"method": "subscribe", "subscription": {...}} format
             subscriptions = [
-                {"type": "subscribe", "channel": "l2Book", "coin": api_symbol},
-                {"type": "subscribe", "channel": "trades", "coin": api_symbol},
-                {"type": "subscribe", "channel": "candle", "coin": api_symbol, "interval": "1m"},
-                {"type": "subscribe", "channel": "funding", "coin": api_symbol},
-                {"type": "subscribe", "channel": "openInterest", "coin": api_symbol}
+                {"method": "subscribe", "subscription": {"type": "l2Book", "coin": api_symbol}},
+                {"method": "subscribe", "subscription": {"type": "trades", "coin": api_symbol}},
+                {"method": "subscribe", "subscription": {"type": "candle", "coin": api_symbol, "interval": "1m"}},
             ]
 
             for sub in subscriptions:
                 await self.ws_connection.send(json.dumps(sub))
-                logger.info(f"Subscribed to {sub['channel']} for {symbol} (API: {api_symbol})")
+                sub_type = sub["subscription"]["type"]
+                logger.info(f"Subscribed to {sub_type} for {symbol} (API: {api_symbol})")
 
     async def start(self):
         """Start the WebSocket data stream or REST polling fallback."""
