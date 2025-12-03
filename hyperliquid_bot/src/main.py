@@ -380,7 +380,8 @@ class HyperliquidTradingBot:
         if candles_df.is_empty():
             return pl.DataFrame()
 
-        # Merge orderbook data with candles (latest for each timestamp)
+        # ALWAYS add orderbook columns to ensure consistent feature count
+        # Use actual data if available, otherwise use default values
         if not orderbook_df.is_empty():
             # Take most recent orderbook snapshot
             latest_book = orderbook_df.tail(1)
@@ -390,6 +391,16 @@ class HyperliquidTradingBot:
                     candles_df = candles_df.with_columns([
                         pl.lit(latest_book[col][0]).alias(col)
                     ])
+        else:
+            # Add default orderbook columns with NaN values to maintain consistent schema
+            # This ensures compute_all_features always sees the same columns
+            mid_price = candles_df["close"].tail(1)[0] if len(candles_df) > 0 else 0.0
+            candles_df = candles_df.with_columns([
+                pl.lit(mid_price).alias("best_bid"),  # Use close price as default
+                pl.lit(mid_price).alias("best_ask"),  # Use close price as default
+                pl.lit(0.0).alias("bid_size"),  # Zero size when no orderbook
+                pl.lit(0.0).alias("ask_size")   # Zero size when no orderbook
+            ])
 
         # Compute all features
         df = self.feature_engine.compute_all_features(candles_df)
