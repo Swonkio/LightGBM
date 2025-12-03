@@ -338,7 +338,13 @@ class FeatureEngine:
         """Return list of all computed feature names."""
         # This should match all features created in compute_all_features
         base_features = [
-            # Orderbook
+            # OHLCV (base candle data)
+            "open", "high", "low", "close", "volume",
+
+            # Base orderbook columns
+            "best_bid", "best_ask", "bid_size", "ask_size",
+
+            # Orderbook features
             "micro_price", "spread_bps", "orderflow_imbalance", "book_depth_ratio",
 
             # Volume
