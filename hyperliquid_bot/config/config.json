@@ -71,7 +71,7 @@
     "enabled": true,
     "ollama_host": "http://localhost:11434",
     "main_model": {
-      "name": "llama3.1:70b-instruct-q4_K_M",
+      "name": "deepseek-r1:32b",
       "temperature": 0.3,
       "top_p": 0.9,
       "max_tokens": 512,
@@ -79,7 +79,7 @@
       "timeout_seconds": 120
     },
     "fast_model": {
-      "name": "gemma2:27b",
+      "name": "gpt-oss:20b",
       "temperature": 0.2,
       "top_p": 0.85,
       "max_tokens": 256,
