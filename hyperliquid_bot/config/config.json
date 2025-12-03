@@ -75,7 +75,7 @@
   },
 
   "llm": {
-    "enabled": true,
+    "enabled": false,
     "ollama_host": "http://localhost:11434",
     "main_model": {
       "name": "deepseek-r1:32b",
