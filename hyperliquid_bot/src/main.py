@@ -448,18 +448,24 @@ class HyperliquidTradingBot:
             (pl.col("close").shift(-forward_bars) / pl.col("close") - 1).alias("forward_return")
         ])
 
-        # Create labels
+        # Create labels (only for rows with valid forward returns)
         df = df.with_columns([
-            pl.when(pl.col("forward_return") > profit_threshold)
+            pl.when(pl.col("forward_return").is_null())
+            .then(None)  # No label for rows without future data
+            .when(pl.col("forward_return") > profit_threshold)
             .then(2)  # Long
             .when(pl.col("forward_return") < -profit_threshold)
             .then(0)  # Short
             .otherwise(1)  # Flat
+            .cast(pl.Int32)  # Ensure integer type
             .alias("target")
         ])
 
         # Drop forward_return column (only needed for label generation)
         df = df.drop("forward_return")
+
+        # Filter out rows without valid labels (last N rows without future data)
+        df = df.filter(pl.col("target").is_not_null())
 
         return df
 
