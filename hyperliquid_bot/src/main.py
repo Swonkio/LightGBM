@@ -458,6 +458,9 @@ class HyperliquidTradingBot:
             .alias("target")
         ])
 
+        # Drop forward_return column (only needed for label generation)
+        df = df.drop("forward_return")
+
         return df
 
     async def _run_macro_analysis(self, symbol: str, df: pl.DataFrame):
