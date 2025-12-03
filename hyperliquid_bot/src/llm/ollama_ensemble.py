@@ -393,12 +393,12 @@ Response:"""
 
     def should_run_macro_analysis(self) -> bool:
         """Check if it's time to run macro analysis."""
-        interval = self.main_model["interval_minutes"] * 60
+        interval = self.main_model["inference_interval_minutes"] * 60
         return (time.time() - self.last_macro_time) >= interval
 
     def should_run_orderflow_analysis(self) -> bool:
         """Check if it's time to run orderflow analysis."""
-        interval = self.fast_model["interval_minutes"] * 60
+        interval = self.fast_model["inference_interval_minutes"] * 60
         return (time.time() - self.last_orderflow_time) >= interval
 
     def get_cache_age_seconds(self) -> Dict[str, float]:
