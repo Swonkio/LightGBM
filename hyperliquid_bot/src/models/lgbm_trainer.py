@@ -93,6 +93,14 @@ class IncrementalLGBMTrainer:
         Returns:
             (train_dataset, val_dataset, feature_names)
         """
+        # Filter out rows with invalid labels (null or negative)
+        if target_col in df.columns:
+            df = df.filter(
+                (pl.col(target_col).is_not_null()) &
+                (pl.col(target_col) >= 0) &
+                (pl.col(target_col) < self.params["num_class"])
+            )
+
         # Drop non-feature columns
         exclude_cols = ["timestamp", "symbol", target_col]
         feature_cols = [col for col in df.columns if col not in exclude_cols]
