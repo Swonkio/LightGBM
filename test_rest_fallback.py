@@ -5,7 +5,21 @@ import asyncio
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "hyperliquid_bot" / "src"))
+# Add hyperliquid_bot/src to path
+script_dir = Path(__file__).resolve().parent
+src_path = script_dir / "hyperliquid_bot" / "src"
+
+if not src_path.exists():
+    # Try alternative paths
+    src_path = Path("/home/user/LightGBM/hyperliquid_bot/src")
+    if not src_path.exists():
+        print(f"ERROR: Cannot find hyperliquid_bot/src directory")
+        print(f"  Looked in: {script_dir / 'hyperliquid_bot' / 'src'}")
+        print(f"  Looked in: {src_path}")
+        print(f"\nPlease run this script from the LightGBM directory or adjust the path.")
+        sys.exit(1)
+
+sys.path.insert(0, str(src_path))
 
 from data_pipeline.hyperliquid_client import HyperliquidClient
 
