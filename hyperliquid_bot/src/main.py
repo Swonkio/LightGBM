@@ -219,6 +219,10 @@ class HyperliquidTradingBot:
         if self.retrainer:
             self.retrainer.start()
 
+        # Fetch initial historical data to bootstrap the bot
+        self.logger.info("Fetching initial historical candle data...")
+        await self._fetch_initial_data()
+
         # Start data client in background
         data_task = asyncio.create_task(self.data_client.start())
 
@@ -234,6 +238,46 @@ class HyperliquidTradingBot:
         except asyncio.CancelledError:
             self.logger.info("Received shutdown signal")
             await self.shutdown()
+
+    async def _fetch_initial_data(self):
+        """Fetch initial historical data to bootstrap the bot."""
+        from datetime import datetime, timedelta
+
+        for symbol in self.config.hyperliquid["symbols"]:
+            try:
+                # Fetch last 6 hours of candles (360 candles)
+                end_time = datetime.now()
+                start_time = end_time - timedelta(hours=6)
+
+                api_symbol = symbol.split("-")[0]  # BTC-PERP -> BTC
+
+                candles_df = self.data_client.get_historical_candles(
+                    symbol=api_symbol,
+                    interval="1m",
+                    start_time=start_time,
+                    end_time=end_time
+                )
+
+                if not candles_df.is_empty():
+                    # Add to buffer
+                    for row in candles_df.iter_rows(named=True):
+                        candle_data = {
+                            "timestamp": row["timestamp"].timestamp() if hasattr(row["timestamp"], "timestamp") else row["timestamp"],
+                            "symbol": symbol,
+                            "open": float(row["open"]),
+                            "high": float(row["high"]),
+                            "low": float(row["low"]),
+                            "close": float(row["close"]),
+                            "volume": float(row["volume"])
+                        }
+                        self.data_client.candles_buffer.append(candle_data)
+
+                    self.logger.info(f"✓ Loaded {len(candles_df)} historical candles for {symbol}")
+                else:
+                    self.logger.warning(f"No historical data available for {symbol}")
+
+            except Exception as e:
+                self.logger.error(f"Error fetching initial data for {symbol}: {e}")
 
     async def _trading_loop(self):
         """Main trading loop."""
