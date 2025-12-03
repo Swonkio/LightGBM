@@ -242,17 +242,28 @@ class HyperliquidClient:
 
     async def _handle_candle(self, data: Dict):
         """Process 1-minute candle data."""
-        symbol = data.get("coin")
         candle = data.get("data", {})
+        symbol = candle.get("s", "")  # Symbol is 's' inside 'data'
+
+        # Convert symbol back to internal format (BTC -> BTC-PERP)
+        # Find matching symbol from our list
+        matching_symbol = None
+        for sym in self.symbols:
+            if normalize_symbol(sym) == symbol:
+                matching_symbol = sym
+                break
+
+        if not matching_symbol:
+            matching_symbol = f"{symbol}-PERP"  # Default format
 
         candle_data = {
-            "timestamp": float(candle.get("t", time.time())),
-            "symbol": symbol,
+            "timestamp": float(candle.get("t", time.time())) / 1000,  # Convert ms to seconds
+            "symbol": matching_symbol,
             "open": float(candle.get("o")),
             "high": float(candle.get("h")),
             "low": float(candle.get("l")),
             "close": float(candle.get("c")),
-            "volume": float(candle.get("v"))
+            "volume": float(candle.get("v", 0))
         }
 
         self.candles_buffer.append(candle_data)
