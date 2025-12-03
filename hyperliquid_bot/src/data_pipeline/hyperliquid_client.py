@@ -17,6 +17,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def normalize_symbol(symbol: str) -> str:
+    """Convert symbol format to Hyperliquid API format (e.g., BTC-PERP -> BTC)."""
+    return symbol.split("-")[0]
+
+
 class HyperliquidClient:
     """
     Real-time Hyperliquid data client with WebSocket and REST support.
@@ -70,6 +75,8 @@ class HyperliquidClient:
         self.ws_connection = None
         self.is_running = False
         self.reconnect_count = 0
+        self.use_rest_fallback = False
+        self.last_candle_fetch = None
 
     def add_callback(self, event_type: str, callback: Callable):
         """Register a callback for specific event types."""
@@ -97,27 +104,44 @@ class HyperliquidClient:
     async def _subscribe_channels(self):
         """Subscribe to all required data channels."""
         for symbol in self.symbols:
+            api_symbol = normalize_symbol(symbol)
             subscriptions = [
-                {"type": "subscribe", "channel": "l2Book", "coin": symbol},
-                {"type": "subscribe", "channel": "trades", "coin": symbol},
-                {"type": "subscribe", "channel": "candle", "coin": symbol, "interval": "1m"},
-                {"type": "subscribe", "channel": "funding", "coin": symbol},
-                {"type": "subscribe", "channel": "openInterest", "coin": symbol}
+                {"type": "subscribe", "channel": "l2Book", "coin": api_symbol},
+                {"type": "subscribe", "channel": "trades", "coin": api_symbol},
+                {"type": "subscribe", "channel": "candle", "coin": api_symbol, "interval": "1m"},
+                {"type": "subscribe", "channel": "funding", "coin": api_symbol},
+                {"type": "subscribe", "channel": "openInterest", "coin": api_symbol}
             ]
 
             for sub in subscriptions:
                 await self.ws_connection.send(json.dumps(sub))
-                logger.info(f"Subscribed to {sub['channel']} for {symbol}")
+                logger.info(f"Subscribed to {sub['channel']} for {symbol} (API: {api_symbol})")
 
     async def start(self):
-        """Start the WebSocket data stream."""
+        """Start the WebSocket data stream or REST polling fallback."""
         self.is_running = True
 
+        # Try WebSocket first
+        ws_connected = await self.connect()
+
+        if not ws_connected:
+            logger.warning("WebSocket connection failed, switching to REST API polling fallback")
+            self.use_rest_fallback = True
+            await self._rest_polling_loop()
+            return
+
+        # WebSocket mode
         while self.is_running:
             try:
                 if not self.ws_connection:
                     connected = await self.connect()
                     if not connected:
+                        # Switch to REST fallback after max retries
+                        if self.reconnect_count >= self.max_reconnect_attempts:
+                            logger.warning("WebSocket unavailable, switching to REST polling fallback")
+                            self.use_rest_fallback = True
+                            await self._rest_polling_loop()
+                            return
                         await asyncio.sleep(self.reconnect_delay)
                         continue
 
@@ -131,9 +155,10 @@ class HyperliquidClient:
                 self.reconnect_count += 1
 
                 if self.reconnect_count >= self.max_reconnect_attempts:
-                    logger.error("Max reconnect attempts reached, stopping...")
-                    self.is_running = False
-                    break
+                    logger.warning("Max reconnect attempts reached, switching to REST fallback")
+                    self.use_rest_fallback = True
+                    await self._rest_polling_loop()
+                    return
 
                 await asyncio.sleep(self.reconnect_delay)
 
@@ -269,6 +294,57 @@ class HyperliquidClient:
 
         for callback in self.callbacks["oi"]:
             await callback(oi_data)
+
+    async def _rest_polling_loop(self):
+        """REST API polling fallback when WebSocket is unavailable."""
+        logger.info("Starting REST API polling mode (polls every 60 seconds)")
+
+        while self.is_running:
+            try:
+                for symbol in self.symbols:
+                    api_symbol = normalize_symbol(symbol)
+
+                    # Fetch recent candles
+                    end_time = datetime.now()
+                    start_time = end_time - timedelta(minutes=60)
+
+                    candles_df = self.get_historical_candles(
+                        symbol=api_symbol,
+                        interval="1m",
+                        start_time=start_time,
+                        end_time=end_time
+                    )
+
+                    if not candles_df.is_empty():
+                        # Add candles to buffer
+                        for row in candles_df.iter_rows(named=True):
+                            candle_data = {
+                                "timestamp": row["timestamp"].timestamp() if hasattr(row["timestamp"], "timestamp") else row["timestamp"],
+                                "symbol": symbol,
+                                "open": float(row["open"]),
+                                "high": float(row["high"]),
+                                "low": float(row["low"]),
+                                "close": float(row["close"]),
+                                "volume": float(row["volume"])
+                            }
+                            self.candles_buffer.append(candle_data)
+
+                            # Trigger callbacks
+                            for callback in self.callbacks["candle"]:
+                                await callback(candle_data)
+
+                        logger.info(f"✓ Fetched {len(candles_df)} candles for {symbol} via REST API")
+
+                    # Fetch meta info for funding/OI (if available via REST)
+                    # Note: Some data may not be available via REST API
+                    # You may need to adjust based on actual Hyperliquid REST endpoints
+
+                # Poll every 60 seconds
+                await asyncio.sleep(60)
+
+            except Exception as e:
+                logger.error(f"Error in REST polling loop: {e}")
+                await asyncio.sleep(30)
 
     def get_historical_candles(
         self,
