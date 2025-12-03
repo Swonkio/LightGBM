@@ -457,15 +457,14 @@ class HyperliquidTradingBot:
             .when(pl.col("forward_return") < -profit_threshold)
             .then(0)  # Short
             .otherwise(1)  # Flat
-            .cast(pl.Int32)  # Ensure integer type
             .alias("target")
         ])
 
+        # Filter out rows without valid labels BEFORE dropping forward_return
+        df = df.filter(pl.col("target").is_not_null())
+
         # Drop forward_return column (only needed for label generation)
         df = df.drop("forward_return")
-
-        # Filter out rows without valid labels (last N rows without future data)
-        df = df.filter(pl.col("target").is_not_null())
 
         return df
 
