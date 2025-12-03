@@ -173,19 +173,27 @@ class HyperliquidClient:
             data = json.loads(message)
             channel = data.get("channel")
 
+            # Log all received messages for debugging
+            logger.debug(f"Received message - channel: {channel}, data: {str(data)[:200]}")
+
             if channel == "l2Book":
                 await self._handle_orderbook(data)
             elif channel == "trades":
                 await self._handle_trade(data)
             elif channel == "candle":
+                logger.info(f"Processing candle message: {str(data)[:150]}")
                 await self._handle_candle(data)
             elif channel == "funding":
                 await self._handle_funding(data)
             elif channel == "openInterest":
                 await self._handle_oi(data)
+            elif channel == "subscriptionResponse":
+                logger.debug(f"Subscription confirmed: {data}")
+            else:
+                logger.warning(f"Unknown channel: {channel}, data: {str(data)[:200]}")
 
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
+            logger.error(f"Error handling message: {e}", exc_info=True)
 
     async def _handle_orderbook(self, data: Dict):
         """Process L2 orderbook updates."""
@@ -242,34 +250,42 @@ class HyperliquidClient:
 
     async def _handle_candle(self, data: Dict):
         """Process 1-minute candle data."""
-        candle = data.get("data", {})
-        symbol = candle.get("s", "")  # Symbol is 's' inside 'data'
+        try:
+            candle = data.get("data", {})
+            symbol = candle.get("s", "")  # Symbol is 's' inside 'data'
 
-        # Convert symbol back to internal format (BTC -> BTC-PERP)
-        # Find matching symbol from our list
-        matching_symbol = None
-        for sym in self.symbols:
-            if normalize_symbol(sym) == symbol:
-                matching_symbol = sym
-                break
+            logger.info(f"Parsing candle - symbol: {symbol}, candle data keys: {list(candle.keys())}")
 
-        if not matching_symbol:
-            matching_symbol = f"{symbol}-PERP"  # Default format
+            # Convert symbol back to internal format (BTC -> BTC-PERP)
+            # Find matching symbol from our list
+            matching_symbol = None
+            for sym in self.symbols:
+                if normalize_symbol(sym) == symbol:
+                    matching_symbol = sym
+                    break
 
-        candle_data = {
-            "timestamp": float(candle.get("t", time.time())) / 1000,  # Convert ms to seconds
-            "symbol": matching_symbol,
-            "open": float(candle.get("o")),
-            "high": float(candle.get("h")),
-            "low": float(candle.get("l")),
-            "close": float(candle.get("c")),
-            "volume": float(candle.get("v", 0))
-        }
+            if not matching_symbol:
+                matching_symbol = f"{symbol}-PERP"  # Default format
 
-        self.candles_buffer.append(candle_data)
+            candle_data = {
+                "timestamp": float(candle.get("t", time.time())) / 1000,  # Convert ms to seconds
+                "symbol": matching_symbol,
+                "open": float(candle.get("o")),
+                "high": float(candle.get("h")),
+                "low": float(candle.get("l")),
+                "close": float(candle.get("c")),
+                "volume": float(candle.get("v", 0))
+            }
 
-        for callback in self.callbacks["candle"]:
-            await callback(candle_data)
+            logger.info(f"✓ Processed candle: {matching_symbol} @ ${candle_data['close']}")
+
+            self.candles_buffer.append(candle_data)
+
+            for callback in self.callbacks["candle"]:
+                await callback(candle_data)
+
+        except Exception as e:
+            logger.error(f"Error in _handle_candle: {e}", exc_info=True)
 
     async def _handle_funding(self, data: Dict):
         """Process funding rate updates."""
