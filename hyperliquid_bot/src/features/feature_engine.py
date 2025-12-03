@@ -189,8 +189,8 @@ class FeatureEngine:
         # RSI
         for window in [14, 28]:
             delta = features["close"].diff()
-            gain = delta.clip_min(0)
-            loss = -delta.clip_max(0)
+            gain = delta.clip(lower_bound=0)
+            loss = -delta.clip(upper_bound=0)
 
             avg_gain = gain.rolling_mean(window)
             avg_loss = loss.rolling_mean(window)
