@@ -416,11 +416,47 @@ class HyperliquidTradingBot:
 
         df = self.feature_engine.add_funding_oi_features(df, funding_rate, oi, oi_prev)
 
+        # Add labels for training (based on future price movement)
+        df = self._add_labels(df)
+
         # Normalize features
         df = self.feature_engine.normalize_features(
             df,
             method=self.config.features["normalization"]
         )
+
+        return df
+
+    def _add_labels(self, df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Add target labels based on forward price movement.
+
+        Labels:
+        - 0: Short (price decreases > threshold)
+        - 1: Flat (price stays within threshold)
+        - 2: Long (price increases > threshold)
+        """
+        if df.is_empty() or len(df) < 2:
+            return df
+
+        # Get labeling params from config
+        forward_bars = self.config.features.get("labeling", {}).get("forward_bars", 60)
+        profit_threshold = self.config.features.get("labeling", {}).get("profit_threshold", 0.005)
+
+        # Calculate forward returns
+        df = df.with_columns([
+            (pl.col("close").shift(-forward_bars) / pl.col("close") - 1).alias("forward_return")
+        ])
+
+        # Create labels
+        df = df.with_columns([
+            pl.when(pl.col("forward_return") > profit_threshold)
+            .then(2)  # Long
+            .when(pl.col("forward_return") < -profit_threshold)
+            .then(0)  # Short
+            .otherwise(1)  # Flat
+            .alias("target")
+        ])
 
         return df
 

@@ -35,7 +35,11 @@
       "temporal": ["hour_sin", "hour_cos", "day_of_week_sin", "day_of_week_cos"]
     },
     "lookback_windows": [5, 15, 30, 60, 240],
-    "normalization": "rolling_zscore"
+    "normalization": "rolling_zscore",
+    "labeling": {
+      "forward_bars": 60,
+      "profit_threshold": 0.005
+    }
   },
 
   "model": {
