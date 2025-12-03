@@ -1,0 +1,167 @@
+{
+  "environment": {
+    "mode": "testnet",
+    "testnet_api_url": "https://api.hyperliquid-testnet.xyz",
+    "mainnet_api_url": "https://api.hyperliquid.xyz"
+  },
+
+  "hyperliquid": {
+    "wallet_address": "YOUR_WALLET_ADDRESS_HERE",
+    "private_key_path": "./config/private_key.txt",
+    "default_symbol": "BTC-PERP",
+    "symbols": ["BTC-PERP", "ETH-PERP"]
+  },
+
+  "data_pipeline": {
+    "websocket_channels": ["l2Book", "trades", "candle", "funding", "openInterest", "userState"],
+    "candle_interval": "1m",
+    "buffer_size": 100000,
+    "parquet_path": "./data/live/realtime_buffer.parquet",
+    "historical_data_path": "./data/historical",
+    "max_history_days": 90,
+    "reconnect_delay_seconds": 5,
+    "max_reconnect_attempts": 10
+  },
+
+  "features": {
+    "enabled": true,
+    "total_features": 45,
+    "feature_groups": {
+      "orderbook": ["micro_price", "spread_bps", "orderflow_imbalance", "book_depth_ratio"],
+      "volume": ["volume_delta", "cumulative_delta", "volume_ma_ratio", "buy_sell_ratio"],
+      "volatility": ["realized_vol_15m", "realized_vol_1h", "parkinson_vol", "garman_klass_vol"],
+      "funding": ["funding_rate", "funding_rate_ema", "funding_rate_change", "oi_delta"],
+      "technical": ["rsi_14", "bb_distance", "atr_normalized", "macd", "macd_signal"],
+      "temporal": ["hour_sin", "hour_cos", "day_of_week_sin", "day_of_week_cos"]
+    },
+    "lookback_windows": [5, 15, 30, 60, 240],
+    "normalization": "rolling_zscore"
+  },
+
+  "model": {
+    "type": "lightgbm",
+    "task": "multiclass",
+    "num_classes": 3,
+    "class_labels": ["short", "flat", "long"],
+    "incremental_learning": true,
+    "retrain_interval_minutes": 5,
+    "min_samples_for_retrain": 1000,
+    "max_train_samples": 15000000,
+    "training_params": {
+      "objective": "multiclass",
+      "num_class": 3,
+      "metric": "multi_logloss",
+      "boosting_type": "gbdt",
+      "num_leaves": 127,
+      "learning_rate": 0.03,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "bagging_freq": 5,
+      "min_data_in_leaf": 50,
+      "max_depth": 8,
+      "num_threads": 24,
+      "verbose": -1
+    },
+    "continue_training_iterations": 100,
+    "model_save_path": "./data/models",
+    "max_retrain_time_seconds": 180
+  },
+
+  "llm": {
+    "enabled": true,
+    "ollama_host": "http://localhost:11434",
+    "main_model": {
+      "name": "llama3.1:70b-instruct-q4_K_M",
+      "temperature": 0.3,
+      "top_p": 0.9,
+      "max_tokens": 512,
+      "inference_interval_minutes": 30,
+      "timeout_seconds": 120
+    },
+    "fast_model": {
+      "name": "gemma2:27b",
+      "temperature": 0.2,
+      "top_p": 0.85,
+      "max_tokens": 256,
+      "inference_interval_minutes": 1,
+      "timeout_seconds": 30
+    },
+    "ensemble_weight": 0.4,
+    "lgbm_weight": 0.6,
+    "override_threshold": 0.85,
+    "prompts": {
+      "macro_analysis": "You are a crypto derivatives market analyst. Analyze the following 6-hour market summary and provide a trading bias (bullish/neutral/bearish) with confidence 0-1.\n\nMarket Data:\n- Symbol: {symbol}\n- Price change 6h: {price_change_pct}%\n- Funding rate: {funding_rate}%\n- Open Interest change: {oi_change_pct}%\n- Large trade flow: {whale_flow}\n- Volume profile: {volume_profile}\n\nProvide response in JSON: {{\"bias\": \"bullish|neutral|bearish\", \"confidence\": 0.0-1.0, \"reasoning\": \"brief explanation\"}}",
+
+      "orderflow_narration": "You are monitoring real-time order flow. Based on the last 60 seconds of data, assess short-term momentum.\n\nData:\n- Cumulative delta: {cum_delta}\n- Buy/sell ratio: {buy_sell_ratio}\n- Orderbook imbalance: {imbalance}\n- Recent large trades: {large_trades}\n\nRespond with JSON: {{\"momentum\": \"strong_buy|weak_buy|neutral|weak_sell|strong_sell\", \"confidence\": 0.0-1.0}}"
+    }
+  },
+
+  "execution": {
+    "enabled": false,
+    "order_type": "limit",
+    "time_in_force": "Alo",
+    "post_only": true,
+    "slippage_tolerance_bps": 5,
+    "order_timeout_seconds": 30,
+    "max_retry_attempts": 3,
+    "cancel_all_on_startup": true
+  },
+
+  "risk": {
+    "max_position_size_usd": 10000,
+    "max_leverage": 8.0,
+    "kelly_fraction": 0.25,
+    "kelly_lookback_trades": 100,
+    "min_edge_threshold": 0.02,
+    "max_drawdown_pct": 15.0,
+    "stop_loss_pct": 2.0,
+    "take_profit_pct": 4.0,
+    "trailing_stop_pct": 1.5,
+    "daily_loss_limit_pct": 5.0,
+    "cooldown_after_stop_minutes": 30,
+    "min_confidence_to_trade": 0.6,
+    "position_limits": {
+      "BTC-PERP": 0.5,
+      "ETH-PERP": 5.0
+    }
+  },
+
+  "backtest": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-01",
+    "initial_capital": 10000,
+    "walk_forward_periods": 12,
+    "retrain_frequency_days": 7,
+    "commission_bps": 2,
+    "slippage_bps": 1,
+    "funding_rate_hours": 8
+  },
+
+  "monitoring": {
+    "enable_discord": false,
+    "discord_webhook_url": "YOUR_DISCORD_WEBHOOK_URL_HERE",
+    "alert_on_trade": true,
+    "alert_on_stop_loss": true,
+    "alert_on_error": true,
+    "health_check_interval_seconds": 60,
+    "metrics_update_interval_seconds": 5,
+    "dashboard_port": 8050
+  },
+
+  "logging": {
+    "level": "INFO",
+    "log_file": "./logs/trading_bot.log",
+    "max_file_size_mb": 100,
+    "backup_count": 10,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+
+  "performance": {
+    "max_ram_usage_gb": 200,
+    "parquet_compression": "snappy",
+    "use_polars": true,
+    "use_duckdb": true,
+    "thread_pool_size": 12,
+    "data_cleanup_days": 30
+  }
+}

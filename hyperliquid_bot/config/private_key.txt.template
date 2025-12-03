@@ -1,0 +1,9 @@
+# Hyperliquid Private Key Template
+#
+# 1. Copy this file to private_key.txt
+# 2. Replace the placeholder with your actual private key
+# 3. Secure the file: chmod 600 private_key.txt
+#
+# NEVER commit private_key.txt to version control!
+
+YOUR_PRIVATE_KEY_HERE_WITHOUT_0x_PREFIX

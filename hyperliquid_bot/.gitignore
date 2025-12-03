@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Sensitive data
+config/private_key.txt
+config/*.key
+config/*.pem
+*.env
+.env
+
+# Data directories
+data/live/*
+data/historical/*
+data/models/*.pkl
+data/backtests/*
+!data/.gitkeep
+
+# Logs
+logs/*.log
+logs/*.log.*
+*.log
+
+# Process files
+*.pid
+nohup.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
