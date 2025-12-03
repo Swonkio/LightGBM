@@ -128,7 +128,7 @@ class FeatureEngine:
 
         # Cumulative volume delta
         features = features.with_columns([
-            pl.col("volume_delta").cumsum().alias("cumulative_delta")
+            pl.col("volume_delta").cum_sum().alias("cumulative_delta")
         ])
 
         # Volume moving average ratio
