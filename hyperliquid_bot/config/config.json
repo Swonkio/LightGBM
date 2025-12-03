@@ -19,8 +19,8 @@
     "parquet_path": "./data/live/realtime_buffer.parquet",
     "historical_data_path": "./data/historical",
     "max_history_days": 90,
-    "reconnect_delay_seconds": 5,
-    "max_reconnect_attempts": 10
+    "reconnect_delay_seconds": 2,
+    "max_reconnect_attempts": 1
   },
 
   "features": {
