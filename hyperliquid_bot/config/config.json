@@ -63,7 +63,7 @@
       "bagging_freq": 3,
       "min_data_in_leaf": 20,
       "max_depth": 12,
-      "num_threads": 48,
+      "num_threads": 24,
       "max_bin": 511,
       "verbose": -1,
       "force_col_wise": true,
@@ -168,7 +168,7 @@
     "parquet_compression": "snappy",
     "use_polars": true,
     "use_duckdb": true,
-    "thread_pool_size": 48,
+    "thread_pool_size": 24,
     "data_cleanup_days": 30
   }
 }
