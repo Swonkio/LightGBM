@@ -70,6 +70,30 @@ else
     fi
 fi
 
+# 3b. Check GPU detection and warn about CPU-only mode
+echo -n "Checking GPU configuration... "
+if command -v nvidia-smi &> /dev/null; then
+    echo -e "${YELLOW}GPU detected${NC}"
+    echo -e "${YELLOW}  Ensuring CPU-only mode for Ollama...${NC}"
+
+    # Check if CUDA_VISIBLE_DEVICES is set to disable GPU
+    if [ -z "$CUDA_VISIBLE_DEVICES" ]; then
+        echo -e "${YELLOW}  Setting CUDA_VISIBLE_DEVICES=-1 for this session${NC}"
+        export CUDA_VISIBLE_DEVICES=-1
+    fi
+
+    # Verify Ollama isn't using GPU
+    if systemctl show ollama -p Environment 2>/dev/null | grep -q "CUDA_VISIBLE_DEVICES=-1"; then
+        echo -e "${GREEN}  ✓ Ollama configured for CPU-only${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ Ollama may use GPU. To force CPU-only:${NC}"
+        echo -e "${YELLOW}    sudo systemctl edit ollama${NC}"
+        echo -e "${YELLOW}    Add: Environment=\"CUDA_VISIBLE_DEVICES=-1\"${NC}"
+    fi
+else
+    echo -e "${GREEN}No GPU detected (CPU-only) ✓${NC}"
+fi
+
 # 4. Check required Python packages
 echo -n "Checking Python dependencies... "
 if $PYTHON_BIN -c "import polars, lightgbm, websockets, requests" 2>/dev/null; then
