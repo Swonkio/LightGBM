@@ -6,7 +6,7 @@
   },
 
   "hyperliquid": {
-    "wallet_address": "YOUR_WALLET_ADDRESS_HERE",
+    "wallet_address": "0x0000073dba6f887cea24f81c0b79e60d88dfe342",
     "private_key_path": "./config/private_key.txt",
     "default_symbol": "BTC-PERP",
     "symbols": ["BTC-PERP", "ETH-PERP"]
@@ -19,8 +19,8 @@
     "parquet_path": "./data/live/realtime_buffer.parquet",
     "historical_data_path": "./data/historical",
     "max_history_days": 90,
-    "reconnect_delay_seconds": 5,
-    "max_reconnect_attempts": 10
+    "reconnect_delay_seconds": 2,
+    "max_reconnect_attempts": 1
   },
 
   "features": {
