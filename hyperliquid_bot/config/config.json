@@ -44,27 +44,30 @@
     "num_classes": 3,
     "class_labels": ["short", "flat", "long"],
     "incremental_learning": true,
-    "retrain_interval_minutes": 5,
-    "min_samples_for_retrain": 1000,
-    "max_train_samples": 15000000,
+    "retrain_interval_minutes": 3,
+    "min_samples_for_retrain": 500,
+    "max_train_samples": 50000000,
     "training_params": {
       "objective": "multiclass",
       "num_class": 3,
       "metric": "multi_logloss",
       "boosting_type": "gbdt",
-      "num_leaves": 127,
-      "learning_rate": 0.03,
-      "feature_fraction": 0.8,
-      "bagging_fraction": 0.8,
-      "bagging_freq": 5,
-      "min_data_in_leaf": 50,
-      "max_depth": 8,
-      "num_threads": 24,
-      "verbose": -1
+      "num_leaves": 255,
+      "learning_rate": 0.05,
+      "feature_fraction": 0.9,
+      "bagging_fraction": 0.9,
+      "bagging_freq": 3,
+      "min_data_in_leaf": 20,
+      "max_depth": 12,
+      "num_threads": 48,
+      "max_bin": 511,
+      "verbose": -1,
+      "force_col_wise": true,
+      "histogram_pool_size": 8192
     },
-    "continue_training_iterations": 100,
+    "continue_training_iterations": 200,
     "model_save_path": "./data/models",
-    "max_retrain_time_seconds": 180
+    "max_retrain_time_seconds": 300
   },
 
   "llm": {
@@ -157,11 +160,11 @@
   },
 
   "performance": {
-    "max_ram_usage_gb": 200,
+    "max_ram_usage_gb": 240,
     "parquet_compression": "snappy",
     "use_polars": true,
     "use_duckdb": true,
-    "thread_pool_size": 12,
+    "thread_pool_size": 48,
     "data_cleanup_days": 30
   }
 }
