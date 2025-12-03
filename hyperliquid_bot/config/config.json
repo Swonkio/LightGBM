@@ -6,7 +6,7 @@
   },
 
   "hyperliquid": {
-    "wallet_address": "YOUR_WALLET_ADDRESS_HERE",
+    "wallet_address": "0x0000073dba6f887cea24f81c0b79e60d88dfe342",
     "private_key_path": "./config/private_key.txt",
     "default_symbol": "BTC-PERP",
     "symbols": ["BTC-PERP", "ETH-PERP"]
