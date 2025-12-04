@@ -113,7 +113,8 @@ class HyperliquidTradingBot:
         self.data_client = HyperliquidClient(
             api_url=self.config.get_api_url(),
             symbols=self.config.hyperliquid["symbols"],
-            buffer_size=self.config.data_pipeline["buffer_size"]
+            buffer_size=self.config.data_pipeline["buffer_size"],
+            parquet_path=self.config.data_pipeline.get("parquet_path")
         )
 
         # Feature engine
