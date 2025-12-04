@@ -300,7 +300,10 @@ class HyperliquidTradingBot:
                 orderbook_df = self.data_client.get_buffer_dataframe("orderbook")
                 trades_df = self.data_client.get_buffer_dataframe("trades")
 
-                # Compute features
+                # Save raw current price BEFORE normalization
+                raw_current_price = float(candles_df["close"].tail(1)[0])
+
+                # Compute features (includes normalization)
                 symbol = self.config.hyperliquid["default_symbol"]
                 df = self._prepare_features(candles_df, orderbook_df, trades_df)
 
@@ -354,7 +357,7 @@ class HyperliquidTradingBot:
                             symbol=symbol,
                             prediction_class=final_class,
                             confidence=final_conf,
-                            current_price=float(df["close"].tail(1)[0]),
+                            current_price=raw_current_price,
                             details=details
                         )
 
