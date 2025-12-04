@@ -41,7 +41,8 @@ class HyperliquidClient:
         symbols: List[str],
         buffer_size: int = 100000,
         reconnect_delay: int = 5,
-        max_reconnect_attempts: int = 10
+        max_reconnect_attempts: int = 10,
+        parquet_path: Optional[str] = None
     ):
         self.api_url = api_url.replace("https://", "wss://").replace("http://", "ws://")
         self.rest_url = api_url.replace("wss://", "https://").replace("ws://", "https://")
@@ -49,6 +50,7 @@ class HyperliquidClient:
         self.buffer_size = buffer_size
         self.reconnect_delay = reconnect_delay
         self.max_reconnect_attempts = max_reconnect_attempts
+        self.parquet_path = Path(parquet_path) if parquet_path else None
 
         # Data buffers
         self.orderbook_buffer: Deque[Dict] = deque(maxlen=buffer_size)
@@ -121,6 +123,13 @@ class HyperliquidClient:
     async def start(self):
         """Start the WebSocket data stream or REST polling fallback."""
         self.is_running = True
+
+        # Load persisted buffer from parquet (if exists)
+        self.load_buffer_from_parquet()
+
+        # Start periodic save task (every 5 minutes)
+        if self.parquet_path:
+            asyncio.create_task(self._periodic_save_task())
 
         # Try WebSocket first
         ws_connected = await self.connect()
@@ -461,7 +470,55 @@ class HyperliquidClient:
         self.is_running = False
         if self.ws_connection:
             await self.ws_connection.close()
+
+        # Save buffer to parquet before stopping
+        self.save_buffer_to_parquet()
         logger.info("WebSocket client stopped")
+
+    async def _periodic_save_task(self):
+        """Periodically save buffer to parquet every 5 minutes."""
+        while self.is_running:
+            await asyncio.sleep(300)  # 5 minutes
+            self.save_buffer_to_parquet()
+
+    def save_buffer_to_parquet(self):
+        """Save candles buffer to parquet file for persistence across restarts."""
+        if not self.parquet_path or len(self.candles_buffer) == 0:
+            return
+
+        try:
+            # Convert deque to list then to polars DataFrame
+            candles_list = list(self.candles_buffer)
+            df = pl.DataFrame(candles_list)
+
+            # Create directory if it doesn't exist
+            self.parquet_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Save to parquet with compression
+            df.write_parquet(self.parquet_path, compression="snappy")
+            logger.info(f"✓ Saved {len(candles_list)} candles to {self.parquet_path}")
+
+        except Exception as e:
+            logger.error(f"Error saving buffer to parquet: {e}")
+
+    def load_buffer_from_parquet(self):
+        """Load candles buffer from parquet file on startup."""
+        if not self.parquet_path or not self.parquet_path.exists():
+            return
+
+        try:
+            # Load from parquet
+            df = pl.read_parquet(self.parquet_path)
+
+            # Convert to list of dicts and add to buffer
+            candles_list = df.to_dicts()
+            for candle in candles_list:
+                self.candles_buffer.append(candle)
+
+            logger.info(f"✓ Loaded {len(candles_list)} candles from {self.parquet_path}")
+
+        except Exception as e:
+            logger.error(f"Error loading buffer from parquet: {e}")
 
 
 if __name__ == "__main__":
